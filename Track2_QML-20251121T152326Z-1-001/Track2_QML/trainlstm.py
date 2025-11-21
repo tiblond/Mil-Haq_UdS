@@ -42,9 +42,10 @@ def main():
     # 1. CHARGEMENT ET SPLIT
     # ==========================================
     print(f">>> 1. Préparation des données enrichies...")
-    X, y, scaler_y = get_lstm_ready_data('train.xlsx', seq_length=SEQ_LENGTH) #
+    # On charge les données (X contient les indicateurs techniques, y les cibles)
+    X, y, scaler_y = get_lstm_ready_data('train.xlsx', seq_length=SEQ_LENGTH)
     
-    # --- SPLIT CHRONOLOGIQUE ---
+    # Split Chronologique (Train 80% / Val 20%)
     split_idx = int(len(X) * 0.8)
     
     X_train = torch.FloatTensor(X[:split_idx])
@@ -52,8 +53,8 @@ def main():
     X_val = torch.FloatTensor(X[split_idx:])
     y_val = torch.FloatTensor(y[split_idx:])
     
-    print(f"   Train set: {X_train.shape}")
-    print(f"   Val set:   {X_val.shape}")
+    print(f"   Train set: {X_train.shape} samples")
+    print(f"   Val set:   {X_val.shape} samples")
     
     train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=BATCH_SIZE, shuffle=False)
     val_loader   = DataLoader(TensorDataset(X_val, y_val), batch_size=BATCH_SIZE, shuffle=False)
@@ -72,17 +73,16 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=LR)
     
     # ==========================================
-    # 3. ENTRAÎNEMENT AVEC VALIDATION
+    # 3. ENTRAÎNEMENT
     # ==========================================
     print(f">>> 2. Démarrage de l'entraînement ({EPOCHS} epochs)...")
     train_losses = []
     val_losses = []
     
     for epoch in range(EPOCHS):
-        # --- A. Phase d'entraînement ---
+        # --- Train ---
         model.train() 
         batch_train_losses = []
-        
         for batch_X, batch_y in train_loader:
             optimizer.zero_grad()
             output = model(batch_X)
@@ -90,91 +90,99 @@ def main():
             loss.backward()
             optimizer.step()
             batch_train_losses.append(loss.item())
-            
+        
         avg_train_loss = np.mean(batch_train_losses)
         train_losses.append(avg_train_loss)
         
-        # --- B. Phase de validation avec PRINTS ---
+        # --- Validation (Loss uniquement) ---
         model.eval() 
         batch_val_losses = []
         
-        # Variables pour stocker un exemple
-        example_pred = None
-        example_true = None
-        
         with torch.no_grad():
-            for i, (batch_X_val, batch_y_val) in enumerate(val_loader):
+            for batch_X_val, batch_y_val in val_loader:
                 val_out = model(batch_X_val)
                 v_loss = criterion(val_out, batch_y_val)
                 batch_val_losses.append(v_loss.item())
-                
-                # On capture le premier élément du premier batch pour affichage
-                if i == 0:
-                    example_pred = val_out[0, 0].item()      # 1er sample, 1ère feature
-                    example_true = batch_y_val[0, 0].item()
         
         avg_val_loss = np.mean(batch_val_losses)
         val_losses.append(avg_val_loss)
         
-        # Affichage propre tous les 5 epochs
         if (epoch+1) % 5 == 0:
-            print(f"   Epoch {epoch+1}/{EPOCHS} | Train Loss: {avg_train_loss:.6f} | Val Loss: {avg_val_loss:.6f}")
-            # --- AJOUT: COMPARAISON VISUELLE (Valeurs normalisées) ---
-            print(f"      -> Check (Norm): Pred={example_pred:.4f} vs True={example_true:.4f} | Diff={abs(example_pred-example_true):.4f}")
+            print(f"   Epoch {epoch+1}/{EPOCHS} | Train: {avg_train_loss:.5f} | Val: {avg_val_loss:.5f}")
 
-    # Sauvegarde
+    # Sauvegarde du modèle
     torch.save(model.state_dict(), 'lstm_final_track2.pth')
-    
+
     # ==========================================
-    # 4. VISUALISATION FINALE (REAL PRICES)
+    # 4. VALIDATION FINALE : VRAIS PRIX (Ce que vous avez demandé)
     # ==========================================
-    print(f"\n>>> 3. Validation Finale : Comparaison des Vrais Prix")
+    print(f"\n>>> 3. Vérification des prédictions (Prix Réels)...")
     
     model.eval()
     with torch.no_grad():
         val_preds_scaled = model(X_val).numpy()
         
-    # --- CORRECTION HERE ---
-    # The model outputs 243 columns (Prices + Technical Features).
-    # scaler_y only knows the 224 Prices. We slice [:, :224].
-    
+    # Dénormalisation (On coupe à 224 colonnes au cas où le modèle en sort plus)
+    # Cela permet de comparer des pommes avec des pommes (Vrais Dollars/Volatilité)
     val_preds_real = scaler_y.inverse_transform(val_preds_scaled[:, :224])
     y_val_real = scaler_y.inverse_transform(y_val.numpy()[:, :224])
     
     print(f"   {'Index':<6} | {'Prédiction':<12} | {'Réalité':<12} | {'Écart':<12}")
-    print("-" * 50)
+    print("-" * 55)
+    # On affiche les 5 premiers jours du set de validation
     for k in range(5):
-        pred_p = val_preds_real[k, 0] 
+        pred_p = val_preds_real[k, 0] # On regarde la 1ère feature (souvent la plus importante)
         true_p = y_val_real[k, 0]     
         diff = pred_p - true_p
         print(f"   {k:<6} | {pred_p:.5f}      | {true_p:.5f}      | {diff:.5f}")
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(train_losses, label='Train Loss')
-    plt.plot(val_losses, label='Validation Loss', color='orange')
-    plt.title("Training vs Validation Loss")
-    plt.legend()
-    plt.show()
+    # ==========================================
+    # 5. PRÉPARATION DE LA SOUMISSION (XLSX)
+    # ==========================================
+    print(f"\n>>> 4. Génération du fichier de soumission...")
+    
+    template_path = 'template_track2_results.xlsx'
+    submission_df = None
+    days_to_predict = DAYS_TO_PREDICT 
+    
+    # Tentative de chargement du template
+    try:
+        submission_df = pd.read_excel(template_path)
+        days_to_predict = len(submission_df)
+        print(f"   Template chargé. Génération pour {days_to_predict} jours.")
+    except FileNotFoundError:
+        print(f"   Note : '{template_path}' introuvable. Mode défaut ({days_to_predict} jours).")
 
-    # ==========================================
-    # 5. PRÉDICTION DU FUTUR
-    # ==========================================
-    print(f"\n>>> 4. Génération des prédictions futures ({DAYS_TO_PREDICT} jours)...")
-    
+    # Prédiction auto-régressive du futur
     last_known_sequence = torch.FloatTensor(X[-1]).unsqueeze(0) 
+    future_scaled = predict_future(model, last_known_sequence, days_to_predict=days_to_predict)
     
-    # The model will predict 243 features for the future too
-    future_scaled = predict_future(model, last_known_sequence, days_to_predict=DAYS_TO_PREDICT)
-    
-    # --- CORRECTION HERE ---
-    # Slice again to keep only the 224 price columns
+    if future_scaled.ndim == 1: 
+        future_scaled = future_scaled[np.newaxis, :]
+
+    # Dénormalisation pour la soumission
     future_prices = scaler_y.inverse_transform(future_scaled[:, :224])
     
-    print(f"   Exemple (J+1, Feature 0) : {future_prices[0][0]:.4f}")
-    
-    # Save only the 224 columns required
-    pd.DataFrame(future_prices).to_csv('future_predictions.csv', index=False)
-    print("   Fichier 'future_predictions.csv' généré.")
+    # Sauvegarde
+    if submission_df is not None:
+        if submission_df.shape[1] - 1 == future_prices.shape[1]:
+            submission_df.iloc[:, 1:] = future_prices
+            submission_df.to_excel('submission_results.xlsx', index=False)
+            print(f"   >>> SUCCÈS ! 'submission_results.xlsx' créé.")
+        else:
+            print(f"   ERREUR DIMENSIONS : Template={submission_df.shape[1]-1} cols, Pred={future_prices.shape[1]} cols.")
+            pd.DataFrame(future_prices).to_csv('debug_pred.csv', index=False)
+    else:
+        pd.DataFrame(future_prices).to_csv('future_predictions.csv', index=False)
+        print("   Fichier 'future_predictions.csv' généré.")
+
+    # Plot Final
+    plt.figure(figsize=(10, 4))
+    plt.plot(train_losses, label='Train Loss')
+    plt.plot(val_losses, label='Validation Loss')
+    plt.title("Training Log")
+    plt.legend()
+    plt.show()
 
 if __name__ == "__main__":
     main()
