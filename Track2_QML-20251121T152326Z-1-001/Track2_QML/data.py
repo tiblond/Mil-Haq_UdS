@@ -161,7 +161,7 @@ class SwaptionDataset(Dataset):
     def __getitem__(self, idx):
         return self.X[idx], self.y[idx]
 
-def load_data(file_path="/Users/cassandrenotton/Documents/projects/mila-hackathon/QFF-Mila-AMF-Quandela/data_swaptions/train.xlsx"):
+def load_data(file_path="train.xlsx"):
     """Load swaption data from the given Excel file."""
     print(f"Loading data from {file_path} ...")
     df = pd.read_excel(file_path)

@@ -1,0 +1,105 @@
+Voici une "Todo List" structurée pour aborder le défi de la Track 2 (Swaptions) avec une approche progressive : d'abord classique, puis quantique avec Quandela (Merlin/Perceval).
+
+Cette feuille de route est conçue pour maximiser vos chances de gagner en assurant une base solide avant d'innover avec le QML.
+
+Phase 1 : Compréhension et Préparation des Données (Classique)
+
+Objectif : Avoir des données propres et comprendre la structure des surfaces de volatilité.
+
+    [ ] Exploration des Données (EDA) :
+
+        Utiliser le script fourni data.py pour charger les données via pandas et trier par date.
+
+        Visualiser la surface de volatilité (Tenor vs Maturity) pour identifier les "trous" (données manquantes) et la structure temporelle.
+
+Identifier les lignes vertes (training), violettes (à compléter) et bleues (prédiction future).
+
+    Ingénierie des Fonctionnalités (Feature Engineering) :
+
+        Normaliser les données (StandardScaler ou MinMaxScaler). Le quantique gère mal les grandes échelles de valeurs.
+
+        Créer des "lags" (valeurs passées t−1,t−2...) pour capturer la dépendance temporelle, comme suggéré dans le code fourni.
+
+    Séparation des Données :
+
+        Créer un set d'entraînement (lignes vertes) et un set de validation qui imite les trous des lignes violettes pour tester votre modèle.
+
+Phase 2 : La Solution "Classique" (Benchmark AI)
+
+Objectif : Créer une "Safety Net" performante pour comparer et valider votre futur modèle quantique.
+
+    [ ] Tâche 1 : Imputation (Données manquantes):
+
+    Implémenter une méthode simple (Interpolation spline ou linéaire sur la surface 3D).
+
+    Implémenter une méthode ML (ex: KNN Imputer ou Random Forest Regressor) pour prédire les trous.
+
+[ ] Tâche 2 : Prédiction Temporelle (Futur):
+
+    Entraîner un modèle classique robuste pour les séries temporelles (ex: XGBoost, Ridge Regression ou un petit LSTM).
+
+        Sauvegarder les métriques de performance (MSE/MAE) pour servir de référence ("baseline").
+
+Phase 3 : Implémentation QML avec Quandela (Merlin/Perceval)
+
+Objectif : Transformer la solution en QML en utilisant l'approche "Quantum Reservoir Computing" suggérée par le sujet.
+
+    [ ] Design du Circuit Photonique (Encoding) :
+
+        Utiliser Perceval pour simuler le processeur photonique.
+
+        Définir l'encodage des données classiques (les prix swaptions passés) vers l'état quantique (ex: encodage en amplitude ou via des rotations de phases sur les modes optiques).
+
+[ ] Construction du "Reservoir" Quantique :
+
+    Créer un circuit photonique qui servira de "réservoir" (un réseau fixe et complexe qui projette les données dans un espace de Hilbert plus grand).
+
+    Utiliser Merlin pour optimiser les paramètres variationnels si vous choisissez une approche de type "Variational Quantum Circuit" (VQC) plutôt qu'un réservoir pur.
+
+[ ] Mesure et Readout (La couche d'apprentissage) :
+
+    Simuler la collecte des états du réservoir (ex: comptage de photons / distribution de probabilités en sortie).
+
+Entraîner une couche classique linéaire (ex: Ridge Regression) sur ces sorties quantiques pour effectuer la prédiction finale.
+
+        Note : C'est ici que la rapidité et la faible consommation de données du QML doivent briller.
+
+Phase 4 : Optimisation et Hybridation
+
+Objectif : Raffiner la solution pour les critères de jugement "Originalité" et "Technique".
+
+    [ ] Comparaison Classique vs Quantique :
+
+        Prouver que le modèle QML atteint ou dépasse la précision du modèle classique de la Phase 2.
+
+        Analyser la "Memory Capacity" du réservoir quantique vs paramètres (profondeur, bruit).
+
+[ ] Gestion du Bruit (Noise Model) :
+
+    Si vous utilisez le simulateur, ajoutez du bruit pour montrer la robustesse de votre modèle (critère important pour le passage sur hardware réel).
+
+[ ] Remplissage du Template :
+
+    Générer les prédictions finales pour les lignes violettes (imputation) et bleues (futur).
+
+    Remplir le fichier Excel template_track2_results.xlsx.
+
+Phase 5 : Documentation et Présentation
+
+Objectif : Maximiser les points sur la "Présentation" et l'explication des choix.
+
+    [ ] Documentation du Code :
+
+        Commenter clairement les parties "Classique" et "Quantique" dans le code Python à soumettre.
+
+    Expliquer pourquoi vous avez choisi telle architecture de circuit Quandela.
+
+[ ] Pitch du Projet :
+
+    Préparer des graphiques comparant la courbe d'apprentissage (Loss) AI Classique vs QML.
+
+    Mettre en avant l'originalité de l'approche Reservoir Computing photonique.
+
+        Justifier l'avantage quantique potentiel (vitesse de convergence, généralisation avec peu de données).
+
+Souhaitez-vous que je détaille un exemple de code pour l'étape 3 (Construction du circuit Perceval/Merlin) pour démarrer la partie quantique ?.ù,l411111141
